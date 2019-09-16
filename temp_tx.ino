@@ -12,13 +12,11 @@ DallasTemperature sensors(&oneWire);
 RF24 radio(7, 8);
 RF24Network network(radio);          // Network uses that radio
 
-const uint16_t this_node = 01;        // Address of our node in Octal format
-const uint16_t other_node = 00;       // Address of the other node in Octal format
-
-const unsigned long interval = 2000; //ms  // How often to send 'hello world to the other unit
+const uint16_t this_node = 01;        // Address of our node
+const uint16_t other_node = 00;       // Address of other node
+const unsigned long interval = 2000;  // How often to send packets to the other unit
 
 unsigned long last_sent;             // When did we last send?
-unsigned long packets_sent;          // How many have we sent already
 
 void setup(void) {
   Serial.begin(115200);
@@ -26,7 +24,7 @@ void setup(void) {
   sensors.begin();
   SPI.begin();
   radio.begin();
-  network.begin(/*channel*/ 90, /*node address*/ this_node);
+  network.begin(/*channel*/ 90, /*node address*/ this_node);  // Channel set to 90, writing node set to "this_node"
 }
 
 void loop(void)
