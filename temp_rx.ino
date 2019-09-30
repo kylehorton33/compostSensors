@@ -1,35 +1,55 @@
-#include <SPI.h>
-#include <RF24Network.h>
-#include <RF24.h>
+#include<SPI.h>
+#include "nRF24L01.h"
+#include "RF24.h"
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
-unsigned long time_now = 0;       // Start time count at 0
-RF24 radio(7, 8);                 // Set CE,CSN pins
-RF24Network network(radio);
-const uint16_t this_node = 00;    // Address of our node
-const uint16_t other_node = 01;   // Address of other node
+static char send_payload[256];
 
+#define ONE_WIRE_BUS 2
 
-void setup(void) {
-    Serial.begin(115200);
-    radio.begin();
-    SPI.begin();
-    network.begin(90,this_node);  // Set channel as 90, writing node as "this_node"
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+const int min_payload_size = 4;
+const int max_payload_size = 32;
+const int payload_size_increments_by = 1;
+int next_payload_size = min_payload_size;
+
+RF24 radio(9,10);
+const int role_pin=5;
+
+const uint64_t pipes[2]={0xF0F0F0F0F0E1LL,0XF0F0F0F0D2LL};
+char receive_payload[max_payload_size+1];
+void setup()
+{
+  Serial.begin(115200);
+  radio.begin();
+  radio.enableDynamicPayloads();
+  radio.setRetries(5,15);
+
+  radio.openWritingPipe(pipes[0]);
+  radio.openReadingPipe(1,pipes[1]);
+  radio.startListening();
 }
 
-void loop(void) { 
-  
-   network.update();
-   float temp = 0;
-    
-    while (network.available() ) {
-        RF24NetworkHeader header;
-        network.read(header,&temp,sizeof(float));
-        time_now = millis()/1000;
-        Serial.print("Current temperature is: ");
-        Serial.print(temp);
-        Serial.print(" C (after ");
-        Serial.print(time_now);
-        Serial.println(" s)");
+void loop(void)
+{
+  sensors.requestTemperatures();
+  float temperature = sensors.getTempCByIndex(0);
+  Serial.print("Sending Data: ");
+  Serial.print(temperature);
+  Serial.println(" C");
+  delay(3000);
+  String temp = String(temperature);
+  static char send_payload[50];
+  temp.toCharArray(send_payload,50);
+  Serial.println(send_payload);
 
-    }
+  radio.stopListening();
+
+  Serial.print(F("Now sending length "));
+  Serial.println(next_payload_size);
+  radio.write(send_payload, next_payload_size);
+  radio.startListening();
 }
